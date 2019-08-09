@@ -1,0 +1,22 @@
+{
+    "name": "evenvi/tianyi-nbiot",
+    "description": "Tianyi NBIoT PHP SDK",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "evenvi",
+            "email": "evenvi@163.com"
+        }
+    ],
+    "type": "library",
+    "keywords": ["tianyi", "nbiot", "php", "sdk"],
+    "require": {
+        "php": ">=7.1",
+        "guzzlehttp/guzzle": "^6.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "Evenvi\\Tianyi": "src/"
+        }
+    }
+}
