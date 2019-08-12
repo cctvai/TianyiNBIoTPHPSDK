@@ -1,7 +1,9 @@
 <?php
 namespace Evenvi\Tianyi;
 
+
 use GuzzleHttp\Client;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 
 class AccessToken
 {
@@ -12,6 +14,10 @@ class AccessToken
 
     function get()
     {
+        $cache = new FilesystemAdapter();
+        $accessToken = $cache->getItem('tnps.access_token');
+        return $accessToken->get();
+
         $configSystem = DB::table('config_system')->first();
         if ($configSystem && time() - strtotime($configSystem->timestamp_update) + 600 < $configSystem->expires_in) {
             return $configSystem->access_token;
