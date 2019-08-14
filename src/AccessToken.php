@@ -1,4 +1,5 @@
 <?php
+
 namespace Evenvi\Tianyi;
 
 
@@ -7,43 +8,58 @@ use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 
 class AccessToken
 {
-    function showInfo()
+    private $accessTokenName;
+    private $appConfig;
+
+    public function __construct($appConfig)
     {
-        var_dump("SHOW HOW TO USE");
+        $this->accessTokenName = 'TNPS.access_token';
+        $this->appConfig = $appConfig;
     }
 
-    function get()
+    function getToken()
     {
         $cache = new FilesystemAdapter();
         $accessToken = $cache->getItem('tnps.access_token');
-        return $accessToken->get();
+        if (!$accessToken->isHit()) {
+            $newAccessToken = $this->requestNewAccessToken();
+            if(!$newAccessToken){
+                return false;
+            }
+            $accessToken->set($newAccessToken);
+            $accessToken->expiresAfter(7000);
+            $cache->save($accessToken);
 
-        $configSystem = DB::table('config_system')->first();
-        if ($configSystem && time() - strtotime($configSystem->timestamp_update) + 600 < $configSystem->expires_in) {
-            return $configSystem->access_token;
+            return $newAccessToken;
         }
 
+        return $accessToken;
+
+    }
+
+    private function requestNewAccessToken()
+    {
         $client = new Client([
 //        'base_uri' => config('common.telecom_nbiot_server'),
             'timeout' => 5,
             'verify' => false,
             'cert' => [
-                storage_path("app/ca/" . config('common.telecom_nbiot_cert')),
-                config('common.telecom_nbiot_cert_pwd')
+                $this->appConfig['telecom_nbiot_cert'],
+                $this->appConfig['telecom_nbiot_cert_pwd']
             ]
         ]);
         $headers = [
             'Content-Type' => 'application/x-www-form-urlencoded',
         ];
 
-        $serverHost = config('common.telecom_nbiot_server');
-        $serverPort = config('common.telecom_nbiot_port');
+        $serverHost = $this->appConfig['telecom_nbiot_server'];
+        $serverPort = $this->appConfig['telecom_nbiot_port'];
 
         /*------------- TODO 貌似测试平台刷新Token接口报错，这里临时只获取不刷新 -----------------*/
         $url = 'https://' . $serverHost . ':' . $serverPort . '/iocm/app/sec/v1.1.0/login';
         $requestApiData = [
-            'appId' => config('common.telecom_nbiot_appid'),
-            'secret' => config('common.telecom_nbiot_secret')
+            'appId' => $this->appConfig['telecom_nbiot_appid'],
+            'secret' => $this->appConfig['telecom_nbiot_secret']
         ];
         $response = $client->post($url, [
             'headers' => $headers,
@@ -57,27 +73,11 @@ class AccessToken
         $body = $response->getBody();
         $ret = $body->getContents();
         $retArr = json_decode($ret, true);
-        if ($configSystem) {
-            DB::table('config_system')
-                ->update([
-                    'access_token' => $retArr['accessToken'],
-                    'token_type' => $retArr['tokenType'],
-                    'scope' => $retArr['scope'],
-                    'refresh_token' => $retArr['refreshToken'],
-                    'expires_in' => $retArr['expiresIn'],
-                    'timestamp_update' => date('Y-m-d H:i:s')
-                ]);
-        } else {
-            DB::table('config_system')
-                ->insert([
-                    'access_token' => $retArr['accessToken'],
-                    'token_type' => $retArr['tokenType'],
-                    'scope' => $retArr['scope'],
-                    'refresh_token' => $retArr['refreshToken'],
-                    'expires_in' => $retArr['expiresIn'],
-                    'timestamp_update' => date('Y-m-d H:i:s')
-                ]);
-        }
         return $retArr['accessToken'];
+    }
+
+    function showInfo()
+    {
+        var_dump("SHOW HOW TO USE");
     }
 }
